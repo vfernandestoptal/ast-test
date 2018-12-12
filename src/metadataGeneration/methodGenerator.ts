@@ -20,15 +20,14 @@ import { MetadataGenerator } from "./metadataGenerator";
 // import { getInitializerValue, resolveType } from './resolveType';
 // import { getSecurities } from './security';
 import * as Tsoa from "./tsoa";
+import { flatten } from "../utils/flatten";
 
 export class MethodGenerator {
   private method: Tsoa.HTTPMethod;
 
   constructor(
     private readonly path: string,
-    private readonly node: ts.PropertySignature,
-    private readonly parentTags?: string[],
-    private readonly parentSecurity?: Tsoa.Security[],
+    private readonly node: ts.PropertySignature, // private readonly parentTags?: string[], // private readonly parentSecurity?: Tsoa.Security[],
   ) {
     this.method = this.getMethod();
   }
@@ -68,30 +67,61 @@ export class MethodGenerator {
   }
 
   private buildParameters() {
+    const nodeType = this.node.type;
+    if (!nodeType) {
+      throw new GenerateMetadataError(`Could not get type for '${this.node.name.getText()}' node.`, this.node);
+    }
+
+    if (ts.isTypeLiteralNode(nodeType)) {
+      return flatten(
+        nodeType.members.filter(ts.isPropertySignature).map((prop) => {
+          const propName = MetadataGenerator.current.getPropertySignatureKey(prop);
+          const propType = prop.type;
+
+          if (!propType) {
+            return [];
+          }
+
+          // console.log("===", propName, propType.getText(), ts.SyntaxKind[propType.kind]);
+
+          switch (propName) {
+            case "params":
+              return this.buildPathParameters(propType);
+
+            case "query":
+              return this.buildQueryParameters(propType);
+
+            default:
+              return [];
+          }
+        }),
+      );
+    }
+
     return [];
+  }
 
-    // const parameters = this.node.parameters.map((p) => {
-    //   try {
-    //     return new ParameterGenerator(p, this.method, this.path).Generate();
-    //   } catch (e) {
-    //     const methodId = this.node.name as ts.Identifier;
-    //     const controllerId = (this.node.parent as ts.ClassDeclaration).name as ts.Identifier;
-    //     throw new GenerateMetadataError(`${e.message} \n in '${controllerId.text}.${methodId.text}'`);
-    //   }
-    // });
+  private buildPathParameters(path: ts.TypeNode) {
+    if (ts.isTypeLiteralNode(path)) {
+      // path.members
+    }
 
-    // const bodyParameters = parameters.filter((p) => p.in === "body");
-    // const bodyProps = parameters.filter((p) => p.in === "body-prop");
+    if (ts.isTypeReferenceNode(path)) {
+      const pathSymbol = MetadataGenerator.current.typeChecker.getSymbolAtLocation(path.typeName);
+      if (!pathSymbol) {
+        throw new GenerateMetadataError(`Could not locate type definition for ${path.typeName.getText()}`, path);
+      }
 
-    // if (bodyParameters.length > 1) {
-    //   throw new GenerateMetadataError(`Only one body parameter allowed in '${this.getCurrentLocation()}' method.`);
-    // }
-    // if (bodyParameters.length > 0 && bodyProps.length > 0) {
-    //   throw new GenerateMetadataError(
-    //     `Choose either during @Body or @BodyProp in '${this.getCurrentLocation()}' method.`,
-    //   );
-    // }
-    // return parameters;
+      console.log("===", path.typeName.getText(), pathSymbol.declarations);
+
+      // MetadataGenerator.current.typeChecker.getTypeOfSymbolAtLocation(pathSymbol)
+    }
+
+    return [];
+  }
+
+  private buildQueryParameters(path: ts.TypeNode) {
+    return [];
   }
 
   private getCurrentLocation() {
