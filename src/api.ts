@@ -31,16 +31,27 @@ interface BranchSessionStudentQueryParams {
 }
 type BranchSessionStudentResponse = StudentObject;
 
+const a = 112233;
+
+interface AbcEndpoint {
+  POST: {
+    params: BranchSessionStudentParams;
+  };
+}
+
 export interface API {
+  // endpoint 1
   [BranchSessionStudentUrl]: {
+    // GET method
     GET: {
       params: BranchSessionStudentParams;
       query: BranchSessionStudentQueryParams;
       response: BranchSessionStudentResponse;
     };
   };
-  "/abc": {
-    POST: {};
-  };
+  // endpoint 2
+  "/abc": AbcEndpoint;
+  // endpoint 3
   123: {};
+  [a]: {};
 }

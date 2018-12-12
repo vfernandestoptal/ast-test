@@ -1,6 +1,7 @@
 import { tsquery } from "@phenomnomnominal/tsquery";
 import * as ts from "typescript";
 import { MethodEndpoint } from "./types";
+import { unquote } from "./utils/unquote";
 
 export function getApiEndpoints(tsConfigFile: string, apiTypeName: string): MethodEndpoint[] {
   return new ApiEndpointsParser(tsConfigFile).getApiEndpoints(apiTypeName);
@@ -17,7 +18,7 @@ class ApiEndpointsParser {
 
   getApiEndpoints(apiTypeName: string): MethodEndpoint[] {
     console.log(`Searching for API description type \`${apiTypeName}\`...`);
-    const apiDeclaration = this.getTypeDeclaration(apiTypeName);
+    const apiDeclaration = this.getTypeDeclaration(apiTypeName, ts.SyntaxKind.InterfaceDeclaration);
     if (apiDeclaration && ts.isInterfaceDeclaration(apiDeclaration)) {
       const apiDeclarationType = ts.SyntaxKind[apiDeclaration.kind];
       console.log(`Found API ${apiDeclarationType} type in \`${apiDeclaration.getSourceFile().fileName}\``);
@@ -43,17 +44,29 @@ class ApiEndpointsParser {
     }
   }
 
-  getTypeDeclaration(typeName: string) {
+  getTypeDeclaration(typeName: string, declarationType: ts.SyntaxKind.VariableDeclaration | ts.SyntaxKind.InterfaceDeclaration = ts.SyntaxKind.VariableDeclaration) {
+    const typeKindName = ts.SyntaxKind[declarationType];
     const results =
       this.tsProject
-        .map((sourceFile) => tsquery(sourceFile, `Identifier[name="${typeName}"]`))
+        .map((sourceFile) => tsquery(sourceFile, `${typeKindName} > Identifier[name="${typeName}"]`))
         .find((result) => result.length > 0) || [];
 
     return results.length ? results[0].parent : undefined;
   }
 
   getProperties(node: ts.Node) {
-    const members = ts.isInterfaceDeclaration(node) || ts.isTypeLiteralNode(node) ? node.members : undefined;
+    if (ts.isTypeReferenceNode(node)) {
+      const typeDeclaration = this.getTypeDeclaration(node.typeName.getText(), ts.SyntaxKind.InterfaceDeclaration);
+      if (!typeDeclaration) {
+        return [];
+      }
+      node = typeDeclaration;
+    }
+
+    const members = ts.isInterfaceDeclaration(node) || ts.isTypeLiteralNode(node) 
+      ? node.members 
+      : undefined;
+
     return (
       (members &&
         members.filter<ts.PropertySignature>(ts.isPropertySignature).map((prop) => {
@@ -73,21 +86,17 @@ class ApiEndpointsParser {
     } else if (isStringOrNumericLiteralLike(name)) {
       return ts.escapeLeadingUnderscores(name.text);
     } else if (ts.isComputedPropertyName(name)) {
-      // TODO: get value of computed property name
       if (isStringOrNumericLiteralLike(name.expression)) return ts.escapeLeadingUnderscores(name.expression.text);
 
+      // get value of computed property name
       const typeDeclaration = this.getTypeDeclaration(name.expression.getText());
       if (typeDeclaration && ts.isVariableDeclaration(typeDeclaration) && typeDeclaration.initializer) {
         return unquote(typeDeclaration.initializer.getText());
       }
     }
 
-    throw new Error("Unknown property name");
+    throw new Error("Unknown property name: " + name.getText());
   }
-}
-
-function unquote(value: string): string {
-  return value.replace(/(^["|'|`]|["|'|`]$)/g, "");
 }
 
 function isStringOrNumericLiteralLike(node: ts.Node): node is ts.StringLiteralLike | ts.NumericLiteral {
