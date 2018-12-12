@@ -38,6 +38,7 @@ interface AbcEndpoint {
     params: BranchSessionStudentParams;
   };
 }
+const ab = "--ab--";
 
 export interface API {
   // endpoint 1
@@ -54,4 +55,5 @@ export interface API {
   // endpoint 3
   123: {};
   [a]: {};
+  ["ab"]: undefined;
 }
