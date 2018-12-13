@@ -11,245 +11,246 @@
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // tslint:enable max-line-length
 
-import * as ts from "typescript";
-// import { getDecoratorName, getDecoratorTextValue } from './../utils/decoratorUtils';
-// import { getParameterValidators } from './../utils/validatorUtils';
-import { GenerateMetadataError } from "./exceptions";
-import { MetadataGenerator } from "./metadataGenerator";
-// import { getInitializerValue, resolveType } from "./resolveType";
-import * as Tsoa from "./tsoa";
-import { resolveType } from "./resolveType";
+// import * as ts from "typescript";
+// // import { getDecoratorName, getDecoratorTextValue } from './../utils/decoratorUtils';
+// // import { getParameterValidators } from './../utils/validatorUtils';
+// import { GenerateMetadataError } from "./exceptions";
+// import { MetadataGenerator } from "./metadataGenerator";
+// // import { getInitializerValue, resolveType } from "./resolveType";
+// import * as Tsoa from "./tsoa";
+// import { resolveType } from "./resolveType";
 
-export class ParameterGenerator {
-  constructor(
-    private readonly methodDefinition: ts.TypeNode,
-    private readonly method: string,
-    private readonly path: string,
-  ) {}
+// export class ParameterGenerator {
+//   constructor(
+//     private readonly methodDefinition: ts.TypeNode,
+//     private readonly method: string,
+//     private readonly path: string,
+//   ) {}
 
-  public Generate(): Tsoa.Parameter {
-    if (ts.isTypeLiteralNode(this.methodDefinition)) {
-      this.methodDefinition.members.filter(ts.isPropertySignature).map((prop) => {
-        const propName = MetadataGenerator.current.getPropertySignatureKey(prop);
-        switch (propName) {
-          case "params":
-            return this.getPathParameter(this.parameter);
-            break;
+//   public Generate(): Tsoa.Parameter | undefined {
+//     return;
 
-          case "query":
-            break;
-        }
-      });
-    }
+//     // if (ts.isTypeLiteralNode(this.methodDefinition)) {
+//     //   this.methodDefinition.members.filter(ts.isPropertySignature).map((prop) => {
+//     //     const propName = MetadataGenerator.current.getPropertySignatureKey(prop);
+//     //     switch (propName) {
+//     //       case "params":
+//     //         return this.getPathParameter(this.parameter);
 
-    // return this.getPathParameter(this.parameter);
+//     //       case "query":
+//     //         break;
+//     //     }
+//     //   });
+//     // }
 
-    // const decoratorName = getDecoratorName(this.parameter, (identifier) =>
-    //   this.supportParameterDecorator(identifier.text),
-    // );
+//     // return this.getPathParameter(this.parameter);
 
-    // switch (decoratorName) {
-    //   case "Request":
-    //     return this.getRequestParameter(this.parameter);
-    //   case "Body":
-    //     return this.getBodyParameter(this.parameter);
-    //   case "BodyProp":
-    //     return this.getBodyPropParameter(this.parameter);
-    //   case "Header":
-    //     return this.getHeaderParameter(this.parameter);
-    //   case "Query":
-    //     return this.getQueryParameter(this.parameter);
-    //   case "Path":
-    //     return this.getPathParameter(this.parameter);
-    //   default:
-    //     return this.getPathParameter(this.parameter);
-    // }
-  }
+//     // const decoratorName = getDecoratorName(this.parameter, (identifier) =>
+//     //   this.supportParameterDecorator(identifier.text),
+//     // );
 
-  private getRequestParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
-    const parameterName = (parameter.name as ts.Identifier).text;
-    return {
-      description: this.getParameterDescription(parameter),
-      in: "request",
-      name: parameterName,
-      parameterName,
-      required: !parameter.questionToken && !parameter.initializer,
-      type: { dataType: "object" },
-      validators: {}, // getParameterValidators(this.parameter, parameterName),
-    };
-  }
+//     // switch (decoratorName) {
+//     //   case "Request":
+//     //     return this.getRequestParameter(this.parameter);
+//     //   case "Body":
+//     //     return this.getBodyParameter(this.parameter);
+//     //   case "BodyProp":
+//     //     return this.getBodyPropParameter(this.parameter);
+//     //   case "Header":
+//     //     return this.getHeaderParameter(this.parameter);
+//     //   case "Query":
+//     //     return this.getQueryParameter(this.parameter);
+//     //   case "Path":
+//     //     return this.getPathParameter(this.parameter);
+//     //   default:
+//     //     return this.getPathParameter(this.parameter);
+//     // }
+//   }
 
-  private getBodyPropParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
-    const parameterName = (parameter.name as ts.Identifier).text;
-    const type = this.getValidatedType(parameter);
+//   private getRequestParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
+//     const parameterName = (parameter.name as ts.Identifier).text;
+//     return {
+//       description: this.getParameterDescription(parameter),
+//       in: "request",
+//       name: parameterName,
+//       parameterName,
+//       required: !parameter.questionToken && !parameter.initializer,
+//       type: { dataType: "object" },
+//       validators: {}, // getParameterValidators(this.parameter, parameterName),
+//     };
+//   }
 
-    if (!this.supportBodyMethod(this.method)) {
-      throw new GenerateMetadataError(
-        `@BodyProp('${parameterName}') Can't support in ${this.method.toUpperCase()} method.`,
-      );
-    }
+//   private getBodyPropParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
+//     const parameterName = (parameter.name as ts.Identifier).text;
+//     const type = this.getValidatedType(parameter);
 
-    return {
-      default: getInitializerValue(parameter.initializer, type),
-      description: this.getParameterDescription(parameter),
-      in: "body-prop",
-      name: getDecoratorTextValue(this.parameter, (ident) => ident.text === "BodyProp") || parameterName,
-      parameterName,
-      required: !parameter.questionToken && !parameter.initializer,
-      type,
-      validators: getParameterValidators(this.parameter, parameterName),
-    };
-  }
+//     if (!this.supportBodyMethod(this.method)) {
+//       throw new GenerateMetadataError(
+//         `@BodyProp('${parameterName}') Can't support in ${this.method.toUpperCase()} method.`,
+//       );
+//     }
 
-  private getBodyParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
-    const parameterName = (parameter.name as ts.Identifier).text;
-    const type = this.getValidatedType(parameter);
+//     return {
+//       default: getInitializerValue(parameter.initializer, type),
+//       description: this.getParameterDescription(parameter),
+//       in: "body-prop",
+//       name: getDecoratorTextValue(this.parameter, (ident) => ident.text === "BodyProp") || parameterName,
+//       parameterName,
+//       required: !parameter.questionToken && !parameter.initializer,
+//       type,
+//       validators: getParameterValidators(this.parameter, parameterName),
+//     };
+//   }
 
-    if (!this.supportBodyMethod(this.method)) {
-      throw new GenerateMetadataError(
-        `@Body('${parameterName}') Can't support in ${this.method.toUpperCase()} method.`,
-      );
-    }
+//   private getBodyParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
+//     const parameterName = (parameter.name as ts.Identifier).text;
+//     const type = this.getValidatedType(parameter);
 
-    return {
-      description: this.getParameterDescription(parameter),
-      in: "body",
-      name: parameterName,
-      parameterName,
-      required: !parameter.questionToken && !parameter.initializer,
-      type,
-      validators: getParameterValidators(this.parameter, parameterName),
-    };
-  }
+//     if (!this.supportBodyMethod(this.method)) {
+//       throw new GenerateMetadataError(
+//         `@Body('${parameterName}') Can't support in ${this.method.toUpperCase()} method.`,
+//       );
+//     }
 
-  private getHeaderParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
-    const parameterName = (parameter.name as ts.Identifier).text;
-    const type = this.getValidatedType(parameter, false);
+//     return {
+//       description: this.getParameterDescription(parameter),
+//       in: "body",
+//       name: parameterName,
+//       parameterName,
+//       required: !parameter.questionToken && !parameter.initializer,
+//       type,
+//       validators: getParameterValidators(this.parameter, parameterName),
+//     };
+//   }
 
-    if (!this.supportPathDataType(type)) {
-      throw new GenerateMetadataError(`@Header('${parameterName}') Can't support '${type.dataType}' type.`);
-    }
+//   private getHeaderParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
+//     const parameterName = (parameter.name as ts.Identifier).text;
+//     const type = this.getValidatedType(parameter, false);
 
-    return {
-      default: getInitializerValue(parameter.initializer, type),
-      description: this.getParameterDescription(parameter),
-      in: "header",
-      name: getDecoratorTextValue(this.parameter, (ident) => ident.text === "Header") || parameterName,
-      parameterName,
-      required: !parameter.questionToken && !parameter.initializer,
-      type,
-      validators: getParameterValidators(this.parameter, parameterName),
-    };
-  }
+//     if (!this.supportPathDataType(type)) {
+//       throw new GenerateMetadataError(`@Header('${parameterName}') Can't support '${type.dataType}' type.`);
+//     }
 
-  private getQueryParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
-    const parameterName = (parameter.name as ts.Identifier).text;
-    const type = this.getValidatedType(parameter, false);
+//     return {
+//       default: getInitializerValue(parameter.initializer, type),
+//       description: this.getParameterDescription(parameter),
+//       in: "header",
+//       name: getDecoratorTextValue(this.parameter, (ident) => ident.text === "Header") || parameterName,
+//       parameterName,
+//       required: !parameter.questionToken && !parameter.initializer,
+//       type,
+//       validators: getParameterValidators(this.parameter, parameterName),
+//     };
+//   }
 
-    const commonProperties = {
-      default: getInitializerValue(parameter.initializer, type),
-      description: this.getParameterDescription(parameter),
-      in: "query" as "query",
-      name: getDecoratorTextValue(this.parameter, (ident) => ident.text === "Query") || parameterName,
-      parameterName,
-      required: !parameter.questionToken && !parameter.initializer,
-      validators: getParameterValidators(this.parameter, parameterName),
-    };
+//   private getQueryParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
+//     const parameterName = (parameter.name as ts.Identifier).text;
+//     const type = this.getValidatedType(parameter, false);
 
-    if (type.dataType === "array") {
-      const arrayType = type as Tsoa.ArrayType;
-      if (!this.supportPathDataType(arrayType.elementType)) {
-        throw new GenerateMetadataError(
-          `@Query('${parameterName}') Can't support array '${arrayType.elementType.dataType}' type.`,
-        );
-      }
-      return {
-        ...commonProperties,
-        collectionFormat: "multi",
-        type: arrayType,
-      } as Tsoa.ArrayParameter;
-    }
+//     const commonProperties = {
+//       default: getInitializerValue(parameter.initializer, type),
+//       description: this.getParameterDescription(parameter),
+//       in: "query" as "query",
+//       name: getDecoratorTextValue(this.parameter, (ident) => ident.text === "Query") || parameterName,
+//       parameterName,
+//       required: !parameter.questionToken && !parameter.initializer,
+//       validators: getParameterValidators(this.parameter, parameterName),
+//     };
 
-    if (!this.supportPathDataType(type)) {
-      throw new GenerateMetadataError(`@Query('${parameterName}') Can't support '${type.dataType}' type.`);
-    }
+//     if (type.dataType === "array") {
+//       const arrayType = type as Tsoa.ArrayType;
+//       if (!this.supportPathDataType(arrayType.elementType)) {
+//         throw new GenerateMetadataError(
+//           `@Query('${parameterName}') Can't support array '${arrayType.elementType.dataType}' type.`,
+//         );
+//       }
+//       return {
+//         ...commonProperties,
+//         collectionFormat: "multi",
+//         type: arrayType,
+//       } as Tsoa.ArrayParameter;
+//     }
 
-    return {
-      ...commonProperties,
-      type,
-    };
-  }
+//     if (!this.supportPathDataType(type)) {
+//       throw new GenerateMetadataError(`@Query('${parameterName}') Can't support '${type.dataType}' type.`);
+//     }
 
-  private getPathParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
-    const parameterName = (parameter.name as ts.Identifier).text;
-    const type = this.getValidatedType(parameter, false);
-    const pathName = getDecoratorTextValue(this.parameter, (ident) => ident.text === "Path") || parameterName;
+//     return {
+//       ...commonProperties,
+//       type,
+//     };
+//   }
 
-    if (!this.supportPathDataType(type)) {
-      throw new GenerateMetadataError(`@Path('${parameterName}') Can't support '${type.dataType}' type.`);
-    }
-    if (!this.path.includes(`{${pathName}}`)) {
-      throw new GenerateMetadataError(`@Path('${parameterName}') Can't match in URL: '${this.path}'.`);
-    }
+//   private getPathParameter(parameter: ts.ParameterDeclaration): Tsoa.Parameter {
+//     const parameterName = (parameter.name as ts.Identifier).text;
+//     const type = this.getValidatedType(parameter, false);
+//     const pathName = getDecoratorTextValue(this.parameter, (ident) => ident.text === "Path") || parameterName;
 
-    return {
-      default: getInitializerValue(parameter.initializer, type),
-      description: this.getParameterDescription(parameter),
-      in: "path",
-      name: pathName,
-      parameterName,
-      required: true,
-      type,
-      validators: getParameterValidators(this.parameter, parameterName),
-    };
-  }
+//     if (!this.supportPathDataType(type)) {
+//       throw new GenerateMetadataError(`@Path('${parameterName}') Can't support '${type.dataType}' type.`);
+//     }
+//     if (!this.path.includes(`{${pathName}}`)) {
+//       throw new GenerateMetadataError(`@Path('${parameterName}') Can't match in URL: '${this.path}'.`);
+//     }
 
-  private getParameterDescription(node: ts.ParameterDeclaration) {
-    const symbol = MetadataGenerator.current.typeChecker.getSymbolAtLocation(node.name);
-    if (!symbol) {
-      return undefined;
-    }
+//     return {
+//       default: getInitializerValue(parameter.initializer, type),
+//       description: this.getParameterDescription(parameter),
+//       in: "path",
+//       name: pathName,
+//       parameterName,
+//       required: true,
+//       type,
+//       validators: getParameterValidators(this.parameter, parameterName),
+//     };
+//   }
 
-    const comments = symbol.getDocumentationComment(MetadataGenerator.current.typeChecker);
-    if (comments.length) {
-      return ts.displayPartsToString(comments);
-    }
+//   private getParameterDescription(node: ts.ParameterDeclaration) {
+//     const symbol = MetadataGenerator.current.typeChecker.getSymbolAtLocation(node.name);
+//     if (!symbol) {
+//       return undefined;
+//     }
 
-    return undefined;
-  }
+//     const comments = symbol.getDocumentationComment(MetadataGenerator.current.typeChecker);
+//     if (comments.length) {
+//       return ts.displayPartsToString(comments);
+//     }
 
-  private supportBodyMethod(method: string) {
-    return ["post", "put", "patch"].some((m) => m === method.toLowerCase());
-  }
+//     return undefined;
+//   }
 
-  // private supportParameterDecorator(decoratorName: string) {
-  //   return ["header", "query", "parem", "body", "bodyprop", "request"].some(
-  //     (d) => d === decoratorName.toLocaleLowerCase(),
-  //   );
-  // }
+//   private supportBodyMethod(method: string) {
+//     return ["post", "put", "patch"].some((m) => m === method.toLowerCase());
+//   }
 
-  private supportPathDataType(parameterType: Tsoa.Type) {
-    return [
-      "string",
-      "integer",
-      "long",
-      "float",
-      "double",
-      "date",
-      "datetime",
-      "buffer",
-      "boolean",
-      "enum",
-      "any",
-    ].find((t) => t === parameterType.dataType);
-  }
+//   // private supportParameterDecorator(decoratorName: string) {
+//   //   return ["header", "query", "parem", "body", "bodyprop", "request"].some(
+//   //     (d) => d === decoratorName.toLocaleLowerCase(),
+//   //   );
+//   // }
 
-  private getValidatedType(parameter: ts.ParameterDeclaration, extractEnum = true) {
-    let typeNode = parameter.type;
-    if (!typeNode) {
-      const type = MetadataGenerator.current.typeChecker.getTypeAtLocation(parameter);
-      typeNode = MetadataGenerator.current.typeChecker.typeToTypeNode(type) as ts.TypeNode;
-    }
-    return resolveType(typeNode, parameter, extractEnum);
-  }
-}
+//   private supportPathDataType(parameterType: Tsoa.Type) {
+//     return [
+//       "string",
+//       "integer",
+//       "long",
+//       "float",
+//       "double",
+//       "date",
+//       "datetime",
+//       "buffer",
+//       "boolean",
+//       "enum",
+//       "any",
+//     ].find((t) => t === parameterType.dataType);
+//   }
+
+//   private getValidatedType(parameter: ts.ParameterDeclaration, extractEnum = true) {
+//     let typeNode = parameter.type;
+//     if (!typeNode) {
+//       const type = MetadataGenerator.current.typeChecker.getTypeAtLocation(parameter);
+//       typeNode = MetadataGenerator.current.typeChecker.typeToTypeNode(type) as ts.TypeNode;
+//     }
+//     return resolveType(typeNode, parameter, extractEnum);
+//   }
+// }

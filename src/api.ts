@@ -28,6 +28,7 @@ interface BranchSessionStudentParams {
 }
 interface BranchSessionStudentQueryParams {
   phoneNumber?: string;
+  aaaaa: string | undefined;
 }
 type BranchSessionStudentResponse = StudentObject;
 
@@ -36,9 +37,17 @@ const a = 112233;
 interface AbcEndpoint {
   POST: {
     params: BranchSessionStudentParams;
+    body: TestUnion;
+    response: string;
   };
 }
 const ab = "--ab--";
+
+type TestUnion = {
+  a: string;
+} | {
+  b: Date;
+} | null
 
 export interface API {
   // endpoint 1
