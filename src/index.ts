@@ -1,10 +1,11 @@
+import * as fs from "fs";
 import * as path from "path";
-import * as tsquery from "./tsquery";
-import * as simpleast from "./tssimpleast";
+// import * as tsquery from "./tsquery";
+// import * as simpleast from "./tssimpleast";
 
 const apiTypeName = "API";
 const tsConfigFile = path.join(process.cwd(), "tsconfig.json");
-const entryFile = path.join(process.cwd(), "src", "api.ts");
+// const entryFile = path.join(process.cwd(), "src", "api.ts");
 
 // console.log("Getting info with tsquery...");
 // let endpoints = tsquery.getApiEndpoints(tsConfigFile, apiTypeName);
@@ -27,24 +28,19 @@ import { createFormatter } from "ts-json-schema-generator/dist/factory/formatter
 import {
   Config,
   NodeParser,
-  TypeFormatter,
   Context,
   BaseType,
   Definition,
-  StringMap,
   DefinitionType,
   NoRootTypeError,
   localSymbolAtNode,
   symbolAtNode,
   ObjectType,
-  ReferenceType,
   AliasType,
   UnionType,
   IntersectionType,
-  AnnotatedType,
 } from "ts-json-schema-generator";
 import * as ts from "typescript";
-import { flatten } from "./utils/flatten";
 
 class Generator {
   private allTypes: Map<string, ts.Node>;
@@ -149,6 +145,19 @@ const typeFormatter = createFormatter(config);
 const apiSpec = new Generator(config).generate(config.type);
 const apiDefinitions = new Map<string, Definition>();
 
+interface RouteDefinition {
+  url: string;
+  methods: MethodDefinition[];
+}
+
+interface MethodDefinition {
+  method: string;
+  params?: Definition[];
+  query?: Definition[];
+  body?: Definition;
+  response?: Definition;
+}
+
 if (apiSpec instanceof DefinitionType) {
   const apiType = apiSpec.getType();
   if (apiType instanceof ObjectType) {
@@ -175,7 +184,7 @@ if (apiSpec instanceof DefinitionType) {
               if (methodType instanceof ObjectType) {
                 const methodDefinition = methodType.getProperties();
 
-                const name = method.getName();
+                const methodName = method.getName().toLowerCase();
                 const paramsDefinition = methodDefinition.find((def) => def.getName() === "params");
                 const queryDefinition = methodDefinition.find((def) => def.getName() === "query");
                 const bodyDefinition = methodDefinition.find((def) => def.getName() === "body");
@@ -195,8 +204,9 @@ if (apiSpec instanceof DefinitionType) {
                     params = paramsType.getProperties().map((prop) => {
                       const propType = prop.getType();
                       return {
-                        name: prop.getName(),
                         ...typeFormatter.getDefinition(propType),
+                        in: "path",
+                        name: prop.getName(),
                         required: prop.isRequired(),
                       };
                     });
@@ -213,8 +223,9 @@ if (apiSpec instanceof DefinitionType) {
                     query = queryType.getProperties().map((prop) => {
                       const propType = prop.getType();
                       return {
-                        name: prop.getName(),
                         ...typeFormatter.getDefinition(propType),
+                        in: "query",
+                        name: prop.getName(),
                         required: prop.isRequired(),
                       };
                     });
@@ -236,7 +247,7 @@ if (apiSpec instanceof DefinitionType) {
                 }
 
                 return {
-                  name,
+                  method: methodName,
                   params,
                   query,
                   body,
@@ -246,25 +257,30 @@ if (apiSpec instanceof DefinitionType) {
 
               return;
             })
-            .filter((method) => !!method);
+            .filter((method) => method != null);
         }
 
-        if (methods) {
-          return methods.map((method) => ({
+        if (methods && methods.length > 0) {
+          return {
             url,
-            ...method,
-          }));
+            methods,
+          };
         }
 
         return;
       })
-      .filter((route) => !!route && route.length > 0);
+      .filter((route) => route != null) as RouteDefinition[];
 
+    const openApiSpec = generateOpenApiSpec(routes, apiDefinitions);
+    const specJson = JSON.stringify(openApiSpec, null, 2)
+      .replace(/(\"\$ref\": \"#\/definitions\/)(.*?)(\")/g, (__, prefix, value, suffix) => {
+        // encode $ref name to RFC3986
+        return prefix + encodeURIComponent(value) + suffix;
+      });
+
+    fs.writeFileSync("api.swagger.json", specJson);
     printSeparator();
-    console.log("Routes", JSON.stringify(flatten(routes as any[]), null, 2));
-    printSeparator();
-    console.log("Definitions:");
-    apiDefinitions.forEach((def, name) => console.log(name, JSON.stringify(def, null, 2)));
+    console.log(specJson);
     printSeparator();
   }
 }
@@ -283,11 +299,62 @@ function addToApiDefinitions(type: BaseType) {
   }
 
   if (type instanceof ObjectType) {
-    type.getProperties().forEach(prop => {
+    type.getProperties().forEach((prop) => {
       const propType = prop.getType();
       addToApiDefinitions(propType);
     });
   } else if (type instanceof IntersectionType || type instanceof UnionType) {
-    type.getTypes().forEach(t => addToApiDefinitions(t));
+    type.getTypes().forEach((t) => addToApiDefinitions(t));
   }
+}
+
+function generateOpenApiSpec(routes: RouteDefinition[], apiDefinitions: Map<string, Definition>) {
+  const apiSpec = {
+    swagger: "2.0",
+    info: {
+      title: "ClassDojo API",
+      version: "v1",
+    },
+    host: "api.classdojo.com",
+    basePath: "/",
+    schemes: ["https"],
+    paths: routes.reduce(
+      (paths, route) => {
+        const url = route.url.replace(/:(.+?)(\/|$)/g, "{$1}$2");
+        const methodMap = route.methods.reduce(
+          (methods, method) => {
+            methods[method.method] = {};
+
+            if (method.params || method.query) {
+              methods[method.method].parameters = [...(method.params || []), ...(method.query || [])];
+            }
+
+            if (method.response) {
+              methods[method.method].responses = {
+                "200": {
+                  description: "",
+                  schema: method.response,
+                },
+              };
+            }
+
+            return methods;
+          },
+          {} as any,
+        );
+
+        paths[url] = methodMap;
+
+        return paths;
+      },
+      {} as any,
+    ),
+    definitions: {} as any,
+  };
+
+  apiDefinitions.forEach((def, defKey) => {
+    apiSpec.definitions[defKey] = def;
+  });
+
+  return apiSpec;
 }

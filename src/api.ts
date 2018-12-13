@@ -28,7 +28,7 @@ interface BranchSessionStudentParams {
 }
 interface BranchSessionStudentQueryParams {
   phoneNumber?: string;
-  aaaaa: string | undefined;
+  aaaaa?: string;
 }
 type BranchSessionStudentResponse = StudentObject;
 
@@ -45,9 +45,9 @@ const ab = "--ab--";
 
 type TestUnion = {
   a: string;
-} | {
+} & {
   b: Date;
-} | null
+};
 
 export interface API {
   // endpoint 1
