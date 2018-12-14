@@ -12,6 +12,7 @@ import { createParser } from "ts-json-schema-generator/dist/factory/parser";
 
 export class TypeMetadataGenerator {
   private program: ts.Program;
+  private typeChecker: ts.TypeChecker;
   private nodeParser: NodeParser;
 
   constructor(tsConfigPath: string) {
@@ -25,6 +26,7 @@ export class TypeMetadataGenerator {
     };
   
     this.program = createProgram(config);
+    this.typeChecker = this.program.getTypeChecker();
     this.nodeParser = createParser(this.program, config);
   }
 
@@ -35,19 +37,42 @@ export class TypeMetadataGenerator {
     return rootType;
   }
 
+  private findRootNode(fullName: string, allTypes: Map<string, ts.Node>): ts.Node {
+    const rootNode = allTypes.get(fullName);
+
+    if (!rootNode) {
+      throw new NoRootTypeError(fullName);
+    }
+
+    this.setComputedPropertyNames(rootNode);
+
+    return rootNode;
+  }
+
+  private setComputedPropertyNames(node: ts.Node) {
+    if (ts.isPropertySignature(node)) {
+      const nameNode = node.name;
+
+      if (ts.isComputedPropertyName(nameNode)) {
+        const nameSymbol = this.typeChecker.getSymbolAtLocation(nameNode);
+        if (!nameSymbol) {
+          throw new Error(`Could not get name symbol for '${nameNode.getText()}' node.`);
+        }
+
+        // not sure if there are other undesirable side-effects, but it seems
+        // to work for setting the correct property name we need
+        (node as any).symbol = nameSymbol;
+      }
+    } 
+
+    ts.forEachChild(node, (subnode) => this.setComputedPropertyNames(subnode));
+  }
+
   private parseAllTypes() {
     const allTypes = new Map<string, ts.Node>();
     const typeChecker = this.program.getTypeChecker();
     this.program.getSourceFiles().forEach((sourceFile) => this.inspectNode(sourceFile, typeChecker, allTypes));
     return allTypes;
-  }
-
-  private findRootNode(fullName: string, allTypes: Map<string, ts.Node>): ts.Node {
-    if (!allTypes.has(fullName)) {
-      throw new NoRootTypeError(fullName);
-    }
-
-    return allTypes.get(fullName)!;
   }
 
   private inspectNode(node: ts.Node, typeChecker: ts.TypeChecker, allTypes: Map<string, ts.Node>): void {
@@ -61,6 +86,8 @@ export class TypeMetadataGenerator {
       } else if (this.isGenericType(node as ts.TypeAliasDeclaration)) {
         return;
       }
+
+      
 
       allTypes.set(this.getFullName(node, typeChecker), node);
     } else {
