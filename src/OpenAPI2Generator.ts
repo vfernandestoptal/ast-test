@@ -59,18 +59,33 @@ export class OpenAPI2Generator {
   }
 
   private generateMethodParameters(method: MethodDefinition) {
-    return method.params || method.query || method.body
-      ? [...(method.params || []), ...(method.query || []), ...([method.body] || [])]
-      : undefined;
+    const params: any[] = [];
+    if (method.params && method.params.length > 0) {
+      params.push(...method.params);
+    }
+    if (method.query && method.query.length > 0) {
+      params.push(...method.query);
+    }
+    if (method.body && !method.body.not) {
+      params.push(method.body);
+    }
+
+    return params.length > 0 ? params : undefined;
   }
 
   private generateMethodResponses(method: MethodDefinition) {
-    return {
-      "200": {
-        description: "OK",
-        schema: method.response,
-      },
-    };
+    return method.response && !method.response.not
+      ? {
+          "200": {
+            description: "OK",
+            schema: method.response,
+          },
+        }
+      : {
+          "200": {
+            description: "OK",
+          },
+        };
   }
 
   private escapeRefNames(spec: any) {

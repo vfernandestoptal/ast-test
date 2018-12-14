@@ -48,7 +48,8 @@ type TestUnion = {
   b: Date;
 };
 
-export interface API {
+export interface FullAPI {
+  aaa: void;
   // endpoint 1
   [BranchSessionStudentUrl]: {
     // GET method
@@ -65,6 +66,8 @@ export interface API {
   [a]: {};
   ["ab"]: undefined;
   "/no-response": {
-    POST: {};
+    POST: {
+      response: void;
+    };
   };
 }

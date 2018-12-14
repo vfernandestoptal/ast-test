@@ -1,7 +1,6 @@
 import * as ts from "typescript";
 import {
   Config,
-  NodeParser,
   Context,
   NoRootTypeError,
   localSymbolAtNode,
@@ -13,10 +12,10 @@ import { createParser } from "ts-json-schema-generator/dist/factory/parser";
 export class TypeMetadataGenerator {
   private program: ts.Program;
   private typeChecker: ts.TypeChecker;
-  private nodeParser: NodeParser;
+  private config: Config;
 
   constructor(tsConfigPath: string) {
-    const config: Config = {
+    this.config = {
       path: tsConfigPath,
       type: "",
       topRef: true,
@@ -24,48 +23,18 @@ export class TypeMetadataGenerator {
       jsDoc: "extended",
       skipTypeCheck: true,
     };
-  
-    this.program = createProgram(config);
+
+    this.program = createProgram(this.config);
     this.typeChecker = this.program.getTypeChecker();
-    this.nodeParser = createParser(this.program, config);
   }
 
   public generate(fullName: string) {
     const allTypes = this.parseAllTypes();
     const rootNode = this.findRootNode(fullName, allTypes);
-    const rootType = this.nodeParser.createType(rootNode, new Context());
+
+    const nodeParser = createParser(this.program, this.config);
+    const rootType = nodeParser.createType(rootNode, new Context());
     return rootType;
-  }
-
-  private findRootNode(fullName: string, allTypes: Map<string, ts.Node>): ts.Node {
-    const rootNode = allTypes.get(fullName);
-
-    if (!rootNode) {
-      throw new NoRootTypeError(fullName);
-    }
-
-    this.setComputedPropertyNames(rootNode);
-
-    return rootNode;
-  }
-
-  private setComputedPropertyNames(node: ts.Node) {
-    if (ts.isPropertySignature(node)) {
-      const nameNode = node.name;
-
-      if (ts.isComputedPropertyName(nameNode)) {
-        const nameSymbol = this.typeChecker.getSymbolAtLocation(nameNode);
-        if (!nameSymbol) {
-          throw new Error(`Could not get name symbol for '${nameNode.getText()}' node.`);
-        }
-
-        // not sure if there are other undesirable side-effects, but it seems
-        // to work for setting the correct property name we need
-        (node as any).symbol = nameSymbol;
-      }
-    } 
-
-    ts.forEachChild(node, (subnode) => this.setComputedPropertyNames(subnode));
   }
 
   private parseAllTypes() {
@@ -81,13 +50,14 @@ export class TypeMetadataGenerator {
       node.kind === ts.SyntaxKind.EnumDeclaration ||
       node.kind === ts.SyntaxKind.TypeAliasDeclaration
     ) {
+      // work-arounds for ts-json-schema-generator parsing limitations
+      this.applyNodeCustomChanges(node);
+
       if (!this.isExportType(node)) {
         return;
       } else if (this.isGenericType(node as ts.TypeAliasDeclaration)) {
         return;
       }
-
-      
 
       allTypes.set(this.getFullName(node, typeChecker), node);
     } else {
@@ -107,5 +77,58 @@ export class TypeMetadataGenerator {
   private getFullName(node: ts.Node, typeChecker: ts.TypeChecker): string {
     const symbol = symbolAtNode(node)!;
     return typeChecker.getFullyQualifiedName(symbol).replace(/".*"\./, "");
+  }
+
+  private findRootNode(fullName: string, allTypes: Map<string, ts.Node>): ts.Node {
+    const rootNode = allTypes.get(fullName);
+    if (!rootNode) {
+      throw new NoRootTypeError(fullName);
+    }
+    return rootNode;
+  }
+
+  private applyNodeCustomChanges(node: ts.Node) {
+    if (this.shouldIgnoreNodeSourceFile(node)) return;
+
+    this.setComputedPropertyName(node);  
+    this.replaceVoidKeyword(node);
+
+    ts.forEachChild(node, (subnode) => this.applyNodeCustomChanges(subnode));
+  }
+
+  private shouldIgnoreNodeSourceFile(node: ts.Node) {
+    const filename = node.getSourceFile().fileName;
+    return filename.indexOf("node_modules") !== -1;
+  }
+
+  private setComputedPropertyName(node: ts.Node) {
+    if (ts.isPropertySignature(node)) {
+      const nameNode = node.name;
+
+      if (ts.isComputedPropertyName(nameNode)) {
+        const nameSymbol = this.typeChecker.getSymbolAtLocation(nameNode);
+        if (!nameSymbol) {
+          throw new Error(`Could not get name symbol for '${nameNode.getText()}' node.`);
+        }
+
+        // not sure if there are other undesirable side-effects, but it seems
+        // to work for setting the correct property name we need
+        (node as any).symbol = nameSymbol;
+      }
+    }
+  }
+
+  private replaceVoidKeyword(node: ts.Node) {
+    if (ts.isTypeAliasDeclaration(node) || ts.isPropertySignature(node)) {
+      if (node.type && node.type.kind === ts.SyntaxKind.VoidKeyword) {
+        node.type.kind = ts.SyntaxKind.UndefinedKeyword;
+      } else if (node.type && node.type.kind === ts.SyntaxKind.UnionType) {
+        node.type.forEachChild(child => {
+          if (child.kind === ts.SyntaxKind.VoidKeyword) {
+            child.kind = ts.SyntaxKind.UndefinedKeyword;
+          }
+        });
+      }
+    }
   }
 }
