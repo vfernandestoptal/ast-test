@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import * as path from "path";
-import { Config } from "ts-json-schema-generator";
 import { TypeMetadataGenerator } from "./TypeMetadataGenerator";
 import { OpenAPI2Generator } from "./OpenAPI2Generator";
 import { ApiSpecGenerator } from "./ApiSpecGenerator";

@@ -41,7 +41,6 @@ interface AbcEndpoint {
     response: string;
   };
 }
-const ab = "--ab--";
 
 type TestUnion = {
   a: string;
