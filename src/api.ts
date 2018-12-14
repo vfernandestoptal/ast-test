@@ -65,4 +65,7 @@ export interface API {
   123: {};
   [a]: {};
   ["ab"]: undefined;
+  "/no-response": {
+    POST: {};
+  };
 }

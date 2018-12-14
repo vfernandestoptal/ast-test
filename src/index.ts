@@ -25,13 +25,6 @@ const apiSpecOptions = {
 const openApiSpec = new OpenAPI2Generator(apiSpecOptions).generate(apiSpec);
 
 // format api spec as JSON string
-const specJson = JSON.stringify(openApiSpec, null, 2).replace(
-  /(\"\$ref\": \"#\/definitions\/)(.*?)(\")/g,
-  (__, prefix, value, suffix) => {
-    // encode $ref name to RFC3986
-    return prefix + encodeURIComponent(value) + suffix;
-  },
-);
+const specJson = JSON.stringify(openApiSpec, null, 2);
 fs.writeFileSync("api.swagger.json", specJson);
-
 console.log(specJson);

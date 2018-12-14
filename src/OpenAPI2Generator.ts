@@ -1,4 +1,4 @@
-import { ApiSpec } from "./types";
+import { ApiSpec, MethodDefinition } from "./types";
 import { convertUrlParametersToCurlyBraces } from "./utils/url";
 
 export interface OpenAPI2Options {
@@ -18,18 +18,7 @@ export class OpenAPI2Generator {
         const url = convertUrlParametersToCurlyBraces(route.url);
         const methodMap = route.methods.reduce(
           (methods, method) => {
-            methods[method.method] = {};
-            if (method.params || method.query) {
-              methods[method.method].parameters = [...(method.params || []), ...(method.query || [])];
-            }
-            if (method.response) {
-              methods[method.method].responses = {
-                "200": {
-                  description: "",
-                  schema: method.response,
-                },
-              };
-            }
+            methods[method.method] = this.generateMethod(method);
             return methods;
           },
           {} as any,
@@ -52,10 +41,46 @@ export class OpenAPI2Generator {
       paths,
       definitions: {} as any,
     };
-    
+
     definitions.forEach((def, defKey) => {
       apiSpec.definitions[defKey] = def;
     });
-    return apiSpec;
+
+    return this.escapeRefNames(apiSpec);
+  }
+
+  private generateMethod(method: MethodDefinition) {
+    const methodSpec = {
+      parameters: this.generateMethodParameters(method),
+      responses: this.generateMethodResponses(method),
+    };
+
+    return methodSpec;
+  }
+
+  private generateMethodParameters(method: MethodDefinition) {
+    return method.params || method.query || method.body
+      ? [...(method.params || []), ...(method.query || []), ...([method.body] || [])]
+      : undefined;
+  }
+
+  private generateMethodResponses(method: MethodDefinition) {
+    return {
+      "200": {
+        description: "OK",
+        schema: method.response,
+      },
+    };
+  }
+
+  private escapeRefNames(spec: any) {
+    const specJson = JSON.stringify(spec).replace(
+      /(\"\$ref\":\s?\"#\/definitions\/)(.*?)(\")/g,
+      (__, prefix, value, suffix) => {
+        // encode $ref name to RFC3986
+        return prefix + encodeURIComponent(value) + suffix;
+      },
+    );
+    return JSON.parse(specJson);
   }
 }

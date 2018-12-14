@@ -99,8 +99,8 @@ export class ApiSpecGenerator {
                         const propType = prop.getType();
                         return {
                           ...this.typeFormatter.getDefinition(propType),
-                          in: "query",
                           name: prop.getName(),
+                          in: "query",
                           required: prop.isRequired(),
                         };
                       });
@@ -109,7 +109,11 @@ export class ApiSpecGenerator {
 
                   if (bodyDefinition) {
                     const bodyType = bodyDefinition.getType();
-                    body = this.typeFormatter.getDefinition(bodyType);
+                    body = {
+                      name: "body",
+                      in: "body",
+                      schema: this.typeFormatter.getDefinition(bodyType),
+                    };
 
                     this.addToApiDefinitions(bodyType, definitions);
                   }
