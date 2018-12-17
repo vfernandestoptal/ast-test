@@ -1,18 +1,16 @@
 import * as ts from "typescript";
-import {
-  Config,
-  Context,
-  NoRootTypeError,
-  localSymbolAtNode,
-  symbolAtNode,
-} from "ts-json-schema-generator";
+import { Context, NoRootTypeError, localSymbolAtNode, symbolAtNode } from "ts-json-schema-generator";
 import { createProgram } from "ts-json-schema-generator/dist/factory/program";
-import { createParser } from "ts-json-schema-generator/dist/factory/parser";
+import { createParser, CustomTypeNodeParserConfig } from "./CustomTypeMetadataParser";
+import { VoidTypeNodeParser } from "./VoidNodeParser";
+import { MapToAnyNodeParser } from "./MapToAnyNodeParser";
+import { AugmentedClassNodeParser } from "./AugmentedClassNodeParser";
+import { NeverTypeNodeParser } from "./NeverNodeParser";
 
 export class TypeMetadataGenerator {
   private program: ts.Program;
   private typeChecker: ts.TypeChecker;
-  private config: Config;
+  private config: CustomTypeNodeParserConfig;
 
   constructor(tsConfigPath: string) {
     this.config = {
@@ -22,6 +20,33 @@ export class TypeMetadataGenerator {
       expose: "all",
       jsDoc: "extended",
       skipTypeCheck: true,
+      customParsers: [
+        new VoidTypeNodeParser(),
+        new NeverTypeNodeParser(),
+        new AugmentedClassNodeParser(),
+        new MapToAnyNodeParser([
+          "RenderedChannelParticipant",
+          "ClassObjectWithCollaborators",
+          "Request",
+          "Readable",
+          "Stream",
+          "SqlIdBin",
+          "RenderedComment",
+          "DynamicConfigObject",
+          "EditionUserDataObject",
+          "RenderedHomeAward",
+          "IdeasLessonPostPayload",
+          "RenderedAward",
+          "RenderedSessionToken",
+          "RenderedStudentUser",
+          "RenderedStudent",
+          "RenderedStudentDetail",
+          "RenderedStudentForClass",
+          "RenderedSchoolClasses",
+          "SchoolStudentBatchPostResponseType",
+          "MomentSectionRendered",
+        ]),
+      ],
     };
 
     this.program = createProgram(this.config);
@@ -90,8 +115,7 @@ export class TypeMetadataGenerator {
   private applyNodeCustomChanges(node: ts.Node) {
     if (this.shouldIgnoreNodeSourceFile(node)) return;
 
-    this.setComputedPropertyName(node);  
-    this.replaceVoidKeyword(node);
+    this.setComputedPropertyName(node);
 
     ts.forEachChild(node, (subnode) => this.applyNodeCustomChanges(subnode));
   }
@@ -114,20 +138,6 @@ export class TypeMetadataGenerator {
         // not sure if there are other undesirable side-effects, but it seems
         // to work for setting the correct property name we need
         (node as any).symbol = nameSymbol;
-      }
-    }
-  }
-
-  private replaceVoidKeyword(node: ts.Node) {
-    if (ts.isTypeAliasDeclaration(node) || ts.isPropertySignature(node)) {
-      if (node.type && node.type.kind === ts.SyntaxKind.VoidKeyword) {
-        node.type.kind = ts.SyntaxKind.UndefinedKeyword;
-      } else if (node.type && node.type.kind === ts.SyntaxKind.UnionType) {
-        node.type.forEachChild(child => {
-          if (child.kind === ts.SyntaxKind.VoidKeyword) {
-            child.kind = ts.SyntaxKind.UndefinedKeyword;
-          }
-        });
       }
     }
   }

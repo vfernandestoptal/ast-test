@@ -9,8 +9,10 @@ import {
   UnionType,
   IntersectionType,
   TypeFormatter,
+  derefType,
 } from "ts-json-schema-generator";
 import { RouteDefinition } from "./types";
+import { flatten } from "./utils/flatten";
 
 export class ApiSpecGenerator {
   private typeFormatter: TypeFormatter;
@@ -18,7 +20,7 @@ export class ApiSpecGenerator {
   constructor() {
     const config: Config = {
       path: "",
-      type: "",
+      type: "FullAPI",
       topRef: true,
       expose: "all",
       jsDoc: "extended",
@@ -32,127 +34,141 @@ export class ApiSpecGenerator {
       throw new Error(`Found unexpected type for ${apiTypeInfo.getId()}`);
     }
 
-    let routes: RouteDefinition[] = [];
+    let routes: RouteDefinition[][] = [];
     const definitions = new Map<string, Definition>();
-    const apiType = apiTypeInfo.getType();
-    if (apiType instanceof ObjectType) {
-      routes = apiType
-        .getProperties()
-        .map((route) => {
-          const url = route.getName();
+    const apiType = derefType(apiTypeInfo.getType());
 
-          let routeType = route.getType();
-          if (routeType instanceof DefinitionType) {
-            routeType = routeType.getType();
-          }
+    const isObjectType = (type: BaseType): type is ObjectType => type instanceof ObjectType;
+    const apiTypes: ObjectType[] =
+      apiType instanceof IntersectionType
+        ? apiType.getTypes().map(derefType).filter(isObjectType)
+        : isObjectType(apiType)
+        ? [apiType]
+        : [];
 
-          let methods;
-          if (routeType instanceof ObjectType) {
-            methods = routeType
-              .getProperties()
-              .map((method) => {
-                let methodType = method.getType();
-                if (methodType instanceof DefinitionType) {
-                  methodType = methodType.getType();
-                }
+    if (apiTypes.length > 0) {
+      routes = apiTypes.map(
+        (apiType) =>
+          apiType
+            .getProperties()
+            .map((route) => {
+              const url = route.getName();
 
-                if (methodType instanceof ObjectType) {
-                  const methodDefinition = methodType.getProperties();
+              let routeType = route.getType();
+              if (routeType instanceof DefinitionType) {
+                routeType = routeType.getType();
+              }
 
-                  const methodName = method.getName().toLowerCase();
-                  const paramsDefinition = methodDefinition.find((def) => def.getName() === "params");
-                  const queryDefinition = methodDefinition.find((def) => def.getName() === "query");
-                  const bodyDefinition = methodDefinition.find((def) => def.getName() === "body");
-                  const responseDefinition = methodDefinition.find((def) => def.getName() === "response");
-
-                  let params;
-                  let query;
-                  let body;
-                  let response;
-                  if (paramsDefinition) {
-                    let paramsType = paramsDefinition.getType();
-                    if (paramsType instanceof DefinitionType) {
-                      paramsType = paramsType.getType();
+              let methods;
+              if (routeType instanceof ObjectType) {
+                methods = routeType
+                  .getProperties()
+                  .map((method) => {
+                    let methodType = method.getType();
+                    if (methodType instanceof DefinitionType) {
+                      methodType = methodType.getType();
                     }
 
-                    if (paramsType instanceof ObjectType) {
-                      params = paramsType.getProperties().map((prop) => {
-                        const propType = prop.getType();
-                        return {
-                          ...this.typeFormatter.getDefinition(propType),
-                          in: "path",
-                          name: prop.getName(),
-                          required: prop.isRequired(),
+                    if (methodType instanceof ObjectType) {
+                      const methodDefinition = methodType.getProperties();
+
+                      const methodName = method.getName().toLowerCase();
+                      const paramsDefinition = methodDefinition.find((def) => def.getName() === "params");
+                      const queryDefinition = methodDefinition.find((def) => def.getName() === "query");
+                      const bodyDefinition = methodDefinition.find((def) => def.getName() === "body");
+                      const responseDefinition = methodDefinition.find((def) => def.getName() === "response");
+
+                      let params;
+                      let query;
+                      let body;
+                      let response;
+                      if (paramsDefinition) {
+                        let paramsType = paramsDefinition.getType();
+                        if (paramsType instanceof DefinitionType) {
+                          paramsType = paramsType.getType();
+                        }
+
+                        if (paramsType instanceof ObjectType) {
+                          params = paramsType.getProperties().map((prop) => {
+                            const propType = prop.getType();
+                            return {
+                              ...this.typeFormatter.getDefinition(propType),
+                              in: "path",
+                              name: prop.getName(),
+                              required: prop.isRequired(),
+                            };
+                          });
+                        }
+                      }
+
+                      if (queryDefinition) {
+                        let queryType = queryDefinition.getType();
+                        if (queryType instanceof DefinitionType) {
+                          queryType = queryType.getType();
+                        }
+
+                        if (queryType instanceof ObjectType) {
+                          query = queryType.getProperties().map((prop) => {
+                            const propType = prop.getType();
+                            return {
+                              ...this.typeFormatter.getDefinition(propType),
+                              name: prop.getName(),
+                              in: "query",
+                              required: prop.isRequired(),
+                            };
+                          });
+                        }
+                      }
+
+                      if (bodyDefinition) {
+                        const bodyType = bodyDefinition.getType();
+                        body = {
+                          name: "body",
+                          in: "body",
+                          schema: this.typeFormatter.getDefinition(bodyType),
                         };
-                      });
+
+                        this.addToApiDefinitions(bodyType, definitions);
+                      }
+
+                      if (responseDefinition) {
+                        const responseType = responseDefinition.getType();
+                        response = this.typeFormatter.getDefinition(responseType);
+
+                        this.addToApiDefinitions(responseType, definitions);
+                      }
+
+                      return {
+                        method: methodName,
+                        params,
+                        query,
+                        body,
+                        response,
+                      };
                     }
-                  }
 
-                  if (queryDefinition) {
-                    let queryType = queryDefinition.getType();
-                    if (queryType instanceof DefinitionType) {
-                      queryType = queryType.getType();
-                    }
+                    return;
+                  })
+                  .filter((method) => method != null);
+              }
 
-                    if (queryType instanceof ObjectType) {
-                      query = queryType.getProperties().map((prop) => {
-                        const propType = prop.getType();
-                        return {
-                          ...this.typeFormatter.getDefinition(propType),
-                          name: prop.getName(),
-                          in: "query",
-                          required: prop.isRequired(),
-                        };
-                      });
-                    }
-                  }
+              if (methods && methods.length > 0) {
+                return {
+                  url,
+                  methods,
+                };
+              }
 
-                  if (bodyDefinition) {
-                    const bodyType = bodyDefinition.getType();
-                    body = {
-                      name: "body",
-                      in: "body",
-                      schema: this.typeFormatter.getDefinition(bodyType),
-                    };
-
-                    this.addToApiDefinitions(bodyType, definitions);
-                  }
-
-                  if (responseDefinition) {
-                    const responseType = responseDefinition.getType();
-                    response = this.typeFormatter.getDefinition(responseType);
-
-                    this.addToApiDefinitions(responseType, definitions);
-                  }
-
-                  return {
-                    method: methodName,
-                    params,
-                    query,
-                    body,
-                    response,
-                  };
-                }
-
-                return;
-              })
-              .filter((method) => method != null);
-          }
-
-          if (methods && methods.length > 0) {
-            return {
-              url,
-              methods,
-            };
-          }
-
-          return;
-        })
-        .filter((route) => route != null) as RouteDefinition[];
+              return;
+            })
+            .filter((route) => route != null) as RouteDefinition[],
+      );
+    } else {
+      throw new Error(`Unsupported API Type Info ${apiType.getId()} for ${apiTypeInfo.getId()}`);
     }
 
     return {
-      routes,
+      routes: flatten(routes),
       definitions,
     };
   }

@@ -46,7 +46,8 @@ export class OpenAPI2Generator {
       apiSpec.definitions[defKey] = def;
     });
 
-    return this.escapeRefNames(apiSpec);
+    // return this.escapeRefNames(apiSpec);
+    return apiSpec;
   }
 
   private generateMethod(method: MethodDefinition) {
@@ -88,14 +89,14 @@ export class OpenAPI2Generator {
         };
   }
 
-  private escapeRefNames(spec: any) {
-    const specJson = JSON.stringify(spec).replace(
-      /(\"\$ref\":\s?\"#\/definitions\/)(.*?)(\")/g,
-      (__, prefix, value, suffix) => {
-        // encode $ref name to RFC3986
-        return prefix + encodeURIComponent(value) + suffix;
-      },
-    );
-    return JSON.parse(specJson);
-  }
+  // private escapeRefNames(spec: any) {
+  //   const specJson = JSON.stringify(spec).replace(
+  //     /(\"\$ref\":\s?\"#\/definitions\/)(.*?)(\")/g,
+  //     (__, prefix, value, suffix) => {
+  //       // encode $ref name to RFC3986
+  //       return prefix + encodeURIComponent(value) + suffix;
+  //     },
+  //   );
+  //   return JSON.parse(specJson);
+  // }
 }
