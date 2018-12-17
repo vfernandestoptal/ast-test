@@ -3,9 +3,9 @@ import { Context, NoRootTypeError, localSymbolAtNode, symbolAtNode } from "ts-js
 import { createProgram } from "ts-json-schema-generator/dist/factory/program";
 import { createParser, CustomTypeNodeParserConfig } from "./CustomTypeMetadataParser";
 import { VoidTypeNodeParser } from "./VoidNodeParser";
-import { MapToAnyNodeParser } from "./MapToAnyNodeParser";
-import { AugmentedClassNodeParser } from "./AugmentedClassNodeParser";
 import { NeverTypeNodeParser } from "./NeverNodeParser";
+import { MapToAnyNodeParser } from "./MapToAnyNodeParser";
+// import { AugmentedClassNodeParser } from "./AugmentedClassNodeParser";
 
 export class TypeMetadataGenerator {
   private program: ts.Program;
@@ -23,28 +23,28 @@ export class TypeMetadataGenerator {
       customParsers: [
         new VoidTypeNodeParser(),
         new NeverTypeNodeParser(),
-        new AugmentedClassNodeParser(),
+        // new AugmentedClassNodeParser(),
         new MapToAnyNodeParser([
-          "RenderedChannelParticipant",
-          "ClassObjectWithCollaborators",
+        //   "RenderedChannelParticipant",
+        //   "ClassObjectWithCollaborators",
           "Request",
-          "Readable",
-          "Stream",
-          "SqlIdBin",
-          "RenderedComment",
-          "DynamicConfigObject",
-          "EditionUserDataObject",
-          "RenderedHomeAward",
-          "IdeasLessonPostPayload",
-          "RenderedAward",
-          "RenderedSessionToken",
-          "RenderedStudentUser",
-          "RenderedStudent",
-          "RenderedStudentDetail",
-          "RenderedStudentForClass",
-          "RenderedSchoolClasses",
-          "SchoolStudentBatchPostResponseType",
-          "MomentSectionRendered",
+        //   "Readable",
+        //   "Stream",
+        //   "SqlIdBin",
+        //   "RenderedComment",
+        //   "DynamicConfigObject",
+        //   "EditionUserDataObject",
+        //   "RenderedHomeAward",
+        //   "IdeasLessonPostPayload",
+        //   "RenderedAward",
+        //   "RenderedSessionToken",
+        //   "RenderedStudentUser",
+        //   "RenderedStudent",
+        //   "RenderedStudentDetail",
+        //   "RenderedStudentForClass",
+        //   "RenderedSchoolClasses",
+        //   "SchoolStudentBatchPostResponseType",
+        //   "MomentSectionRendered",
         ]),
       ],
     };

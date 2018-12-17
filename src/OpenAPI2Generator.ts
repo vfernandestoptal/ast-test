@@ -1,4 +1,4 @@
-import { ApiSpec, MethodDefinition } from "./types";
+import { ApiSpec, MethodDefinition, Definition } from "./types";
 import { convertUrlParametersToCurlyBraces } from "./utils/url";
 
 export interface OpenAPI2Options {
@@ -62,16 +62,25 @@ export class OpenAPI2Generator {
   private generateMethodParameters(method: MethodDefinition) {
     const params: any[] = [];
     if (method.params && method.params.length > 0) {
-      params.push(...method.params);
+      params.push(...method.params.map(this.replaceMongoIdTypeRef));
     }
     if (method.query && method.query.length > 0) {
-      params.push(...method.query);
+      params.push(...method.query.map(this.replaceMongoIdTypeRef));
     }
     if (method.body && !method.body.not) {
       params.push(method.body);
     }
 
     return params.length > 0 ? params : undefined;
+  }
+
+  private replaceMongoIdTypeRef(param: Definition) {
+    if (param.$ref === "#/definitions/MongoId") {
+      param.$ref = undefined;
+      param.type = "string";
+    }
+
+    return param;
   }
 
   private generateMethodResponses(method: MethodDefinition) {

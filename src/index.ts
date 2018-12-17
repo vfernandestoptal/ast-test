@@ -7,8 +7,7 @@ import { ApiSpecGenerator } from "./ApiSpecGenerator";
 try {
   generateSpecFile({
     apiTypeName: "FullAPI",
-    // tsConfigFile: path.join(process.cwd(), "tsconfig.json"),
-    tsConfigFile: path.join(process.cwd(), "..", "api", "tsconfig.json"),
+    tsConfigFile: path.join(process.cwd(), "tsconfig.json"),
     outputFile: "api.swagger.json",
   });
 } catch (err) {
