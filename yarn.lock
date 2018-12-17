@@ -297,15 +297,15 @@ supports-color@^5.3.0:
   dependencies:
     has-flag "^3.0.0"
 
-ts-json-schema-generator@0.37.0:
-  version "0.37.0"
-  resolved "https://registry.yarnpkg.com/ts-json-schema-generator/-/ts-json-schema-generator-0.37.0.tgz#808f31c54b87cb351d97f2adec862aa05b708808"
-  integrity sha512-Xv/JWwxy1UDep3YtlALdUHaF4h0OAEX08vPtq3jjkZupPUVe4Kd3SpZE9BwiBqAJw3uSG6d/VwyrnNUSz+N1fQ==
+ts-json-schema-generator@0.37.1:
+  version "0.37.1"
+  resolved "https://registry.yarnpkg.com/ts-json-schema-generator/-/ts-json-schema-generator-0.37.1.tgz#b85d7ad0821f9193cb57b6848bb96a57d8d90227"
+  integrity sha512-fXTDJ/Saz6gHsJA7o5y6ltlVEQIfc9HOgfSn4lbuAPm+BnfLMJbce8ylQT3yCH8N9zbMqkF3ceOtcN8nxoINMA==
   dependencies:
     commander "~2.19.0"
     glob "~7.1.3"
     json-stable-stringify "^1.0.1"
-    typescript "^3.2.1"
+    typescript "^3.2.2"
 
 ts-node@7.0.1:
   version "7.0.1"
@@ -356,7 +356,7 @@ tsutils@^2.27.2:
   dependencies:
     tslib "^1.8.1"
 
-typescript@3.2.2, typescript@^3.2.1:
+typescript@3.2.2, typescript@^3.2.2:
   version "3.2.2"
   resolved "https://registry.yarnpkg.com/typescript/-/typescript-3.2.2.tgz#fe8101c46aa123f8353523ebdcf5730c2ae493e5"
   integrity sha512-VCj5UiSyHBjwfYacmDuc/NOk4QQixbE+Wn7MFJuS0nRuPQbof132Pw4u53dm264O8LPc2MVsc7RJNml5szurkg==
